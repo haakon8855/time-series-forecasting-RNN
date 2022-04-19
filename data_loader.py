@@ -15,7 +15,7 @@ class DataLoader:
         self.filepath = filepath
         self.data = pd.read_csv(filepath)
         self.target_column = 'y_norm'
-        self.scaler = MinMaxScaler()
+        self.scaler = MinMaxScaler(feature_range=(-1, 1))
 
         self.apply_preprocessing()
         self.apply_feature_engineering()
@@ -60,7 +60,7 @@ class DataLoader:
         self.data['y'] = np.array(winsorized)
         return self.data
 
-    def scale_data(self, new_min: int = 0, new_max: int = 1):
+    def scale_data(self):
         """
         Scales the given data using the rescaling method.
         """
