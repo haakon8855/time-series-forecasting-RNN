@@ -1,2 +1,2 @@
-model_checkpoint_path: "test10epochs50steps"
-all_model_checkpoint_paths: "test10epochs50steps"
+model_checkpoint_path: "test10epochs50steps_test"
+all_model_checkpoint_paths: "test10epochs50steps_test"

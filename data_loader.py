@@ -1,5 +1,6 @@
 """haakon8855"""
 
+from matplotlib import docstring
 import numpy as np
 import pandas as pd
 from scipy.stats.mstats import winsorize
@@ -161,6 +162,55 @@ class DataLoader:
 
         data = data.merge(daily_mean, left_on='date', right_on='date')
         return data
+
+    @staticmethod
+    def strip_and_split_x_y(data, cols_x, cols_y, amount_to_remove):
+        """
+        Removes the first n rows from the dataset, where n=amount_to_remove.
+        This is to remove all rows containing nan values.
+        """
+        data_x_train_stripped = data.iloc[amount_to_remove:][cols_x]
+        data_y_train_stripped = data.iloc[amount_to_remove:][cols_y]
+        return data_x_train_stripped, data_y_train_stripped
+
+    @staticmethod
+    def format_input_data(data, steps):
+        """
+        Returns the input data on the correct format.
+        """
+        formatted_data = []
+        dataframe = data.copy()
+        for i in range(len(dataframe.index) - steps + 1):
+            formatted_data.append(dataframe.iloc[i:i + steps])
+        return np.array(formatted_data)
+
+    @staticmethod
+    def format_target_data(target, steps):
+        """
+        Returns the target data on the correct format.
+        """
+        return np.array(target[steps - 1:])
+
+    @staticmethod
+    def format_data(data_x, data_y, steps):
+        """
+        Returns the data on the correct format.
+        """
+        train_x = DataLoader.format_input_data(data_x, steps)
+        train_y = DataLoader.format_target_data(data_y, steps)
+        return train_x, train_y
+
+    @staticmethod
+    def strip_and_format_data(data, cols_x, cols_y, amount_to_remove, steps):
+        """
+        Strips the data from nan values and aranges it on the correct format
+        for inputting to the network.
+        """
+        data_x_train_stripped, data_y_train_stripped = DataLoader.strip_and_split_x_y(
+            data, cols_x, cols_y, amount_to_remove)
+        train_x, train_y = DataLoader.format_data(data_x_train_stripped,
+                                                  data_y_train_stripped, steps)
+        return train_x, train_y
 
 
 def main():

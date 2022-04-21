@@ -1,6 +1,5 @@
 """haakon8855"""
 
-from cProfile import label
 from matplotlib import pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -75,76 +74,55 @@ class RecurringNeuralNetwork:
             )
         return False
 
-    @staticmethod
-    def format_input_data(data, steps):
+    def fit_or_load_model(self,
+                          train_x,
+                          train_y,
+                          validation_data,
+                          batch_size=32,
+                          epochs=10):
         """
-        Returns the data on the correct format.
+        Tries to load weights from file. If no suitable weights are present,
+        the model is retrained from scratch.
         """
-        formatted_data = []
-        dataframe = data.copy()
-        for i in range(len(dataframe.index) - steps + 1):
-            formatted_data.append(dataframe.iloc[i:i + steps])
-        return np.array(formatted_data)
-
-    @staticmethod
-    def format_target_data(target, steps):
-        """
-        Returns the data on the correct format.
-        """
-        return np.array(target[steps - 1:])
+        loaded = self.load_all_weights()
+        if not loaded:
+            self.fit(train_x,
+                     train_y,
+                     validation_data,
+                     batch_size=batch_size,
+                     epochs=epochs)
 
 
 def main():
     """
     Main method for rnn script.
     """
+    weights_path = 'models/test10epochs50steps_test'
+    steps = 50
+    amount_to_remove = 288
+    cols_to_use = [
+        'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
+        'flow', 'y_yesterday', 'y_prev', 'cos_minute', 'sin_minute',
+        'cos_weekday', 'sin_weekday', 'cos_yearday', 'sin_yearday'
+    ]
+
     data_loader = DataLoader()
     data_train = data_loader.get_processed_data('datasets\\no1_train.csv')
     data_valid = data_loader.get_processed_data('datasets\\no1_validation.csv')
-    cols_to_use = [
-        'hydro',
-        'micro',
-        'thermal',
-        'wind',
-        'river',
-        'total',
-        'sys_reg',
-        'flow',
-        'y_yesterday',
-        'y_prev',
-        'cos_minute',
-        'sin_minute',
-        'cos_weekday',
-        'sin_weekday',
-        'cos_yearday',
-        'sin_yearday',
-    ]
 
-    steps = 50
+    train_x, train_y = DataLoader.strip_and_format_data(
+        data_train, cols_to_use, 'y', amount_to_remove, steps)
+    valid_x, valid_y = DataLoader.strip_and_format_data(
+        data_valid, cols_to_use, 'y', amount_to_remove, steps)
+
     network = RecurringNeuralNetwork(len(cols_to_use),
                                      num_points=steps,
-                                     weights_path='models/test10epochs50steps')
+                                     weights_path=weights_path)
+    network.fit_or_load_model(train_x,
+                              train_y, (valid_x, valid_y),
+                              batch_size=32,
+                              epochs=10)
 
-    idx_to_remove = 288
-    data_x_train_stripped = data_train.iloc[idx_to_remove:][cols_to_use]
-    data_y_train_stripped = data_train.iloc[idx_to_remove:]['y']
-    train_x = RecurringNeuralNetwork.format_input_data(data_x_train_stripped,
-                                                       steps)
-    train_y = RecurringNeuralNetwork.format_target_data(
-        data_y_train_stripped, steps)
-    data_x_valid_stripped = data_valid.iloc[idx_to_remove:][cols_to_use]
-    data_y_valid_stripped = data_valid.iloc[idx_to_remove:]['y']
-    valid_x = RecurringNeuralNetwork.format_input_data(data_x_valid_stripped,
-                                                       steps)
-    valid_y = RecurringNeuralNetwork.format_target_data(
-        data_y_valid_stripped, steps)
-
-    loaded = network.load_all_weights()
-    if not loaded:
-        network.fit(train_x,
-                    train_y, (valid_x, valid_y),
-                    batch_size=32,
-                    epochs=10)
     limit = 200
     test_x = valid_x[:limit]
     test_y = valid_y[:limit]
