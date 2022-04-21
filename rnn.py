@@ -1,6 +1,6 @@
 """haakon8855"""
 
-from msilib.schema import TextStyle
+from cProfile import label
 from matplotlib import pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -37,8 +37,7 @@ class RecurringNeuralNetwork:
         Compiles the model.
         """
         self.model.compile(loss=ks.losses.MeanSquaredError(),
-                           optimizer=ks.optimizers.Adam(learning_rate=0.0001),
-                           metrics=[ks.losses.MeanSquaredError()])
+                           optimizer=ks.optimizers.Adam(learning_rate=0.0001))
 
     def fit(self,
             train_x,
@@ -58,7 +57,7 @@ class RecurringNeuralNetwork:
 
     def predict(self, input_x):
         """
-        Assume data_x contains 12 cases.
+        Provide prediction based on the network input given.
         """
         return self.model(input_x)
 
@@ -99,10 +98,9 @@ def main():
     """
     Main method for rnn script.
     """
-    data_loader_train = DataLoader('datasets\\no1_train.csv')
-    data_loader_valid = DataLoader('datasets\\no1_validation.csv')
-    data_train = data_loader_train.get_data()
-    data_valid = data_loader_valid.get_data()
+    data_loader = DataLoader()
+    data_train = data_loader.get_processed_data('datasets\\no1_train.csv')
+    data_valid = data_loader.get_processed_data('datasets\\no1_validation.csv')
     cols_to_use = [
         'hydro',
         'micro',
@@ -122,11 +120,10 @@ def main():
         'sin_yearday',
     ]
 
-    steps = 12
-    network = RecurringNeuralNetwork(
-        len(cols_to_use),
-        num_points=steps,
-        weights_path='models/test10epochswithvalid')
+    steps = 50
+    network = RecurringNeuralNetwork(len(cols_to_use),
+                                     num_points=steps,
+                                     weights_path='models/test10epochs50steps')
 
     idx_to_remove = 288
     data_x_train_stripped = data_train.iloc[idx_to_remove:][cols_to_use]
@@ -151,15 +148,14 @@ def main():
     limit = 200
     test_x = valid_x[:limit]
     test_y = valid_y[:limit]
-    # test_x = train_x[:limit]
-    # test_y = train_y[:limit]
     y_pred = network.predict(test_x)
     print(f"pred: {y_pred[0][0]}, corr: {train_y[0]}")
 
     plt.figure(figsize=(15, 7))
     plt.title('Prediction')
-    plt.plot(test_y)
-    plt.plot(y_pred)
+    plt.plot(test_y, label='target')
+    plt.plot(y_pred, label='pred')
+    plt.legend()
     plt.show()
 
 
