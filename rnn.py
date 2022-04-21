@@ -1,6 +1,9 @@
 """haakon8855"""
 
+from msilib.schema import TextStyle
+from matplotlib import pyplot as plt
 import numpy as np
+import tensorflow as tf
 from tensorflow import keras as ks
 
 from data_loader import DataLoader
@@ -37,34 +40,27 @@ class RecurringNeuralNetwork:
                            optimizer=ks.optimizers.Adam(learning_rate=0.0001),
                            metrics=[ks.losses.MeanSquaredError()])
 
-    def fit(self, data_train, cols_to_use, epochs=5):
+    def fit(self,
+            train_x,
+            train_y,
+            validation_data=None,
+            batch_size=1024,
+            epochs=5):
         """
         Trains the network on the given dataset.
         """
-        formatted_x = self.format_input_data(data_train, cols_to_use)
-        formatted_y = self.format_target_data(data_train['y'])
-        # print(f"lenx:{len(formatted_x)}")
-        # print(f"leny:{len(formatted_y)}")
-
-        self.model.fit(x=formatted_x, y=formatted_y, epochs=epochs)
+        self.model.fit(x=train_x,
+                       y=train_y,
+                       validation_data=validation_data,
+                       batch_size=batch_size,
+                       epochs=epochs)
         self.model.save_weights(filepath=self.weights_path)
 
-    def format_input_data(self, data, cols_to_use):
+    def predict(self, input_x):
         """
-        Returns the data on the correct format.
+        Assume data_x contains 12 cases.
         """
-        formatted_data = []
-        dataframe = data.iloc[288:][cols_to_use]
-        for i in range(len(dataframe.index) - self.num_points):
-            formatted_data.append(dataframe.iloc[i:i + self.num_points])
-        return np.array(formatted_data)
-
-    def format_target_data(self, target):
-        """
-        Returns the data on the correct format.
-        """
-        target = target[288:]
-        return np.array(target[self.num_points:])
+        return self.model(input_x)
 
     def load_all_weights(self):
         """
@@ -72,29 +68,100 @@ class RecurringNeuralNetwork:
         """
         try:
             self.model.load_weights(filepath=self.weights_path)
-        except ValueError:
+            print('Loaded weights successfully')
+            return True
+        except tf.errors.NotFoundError:
             print(
-                "Unable to read weights from file. Starts training from scratch."
+                'Unable to read weights from file. Starts training from scratch.'
             )
+        return False
+
+    @staticmethod
+    def format_input_data(data, steps):
+        """
+        Returns the data on the correct format.
+        """
+        formatted_data = []
+        dataframe = data.copy()
+        for i in range(len(dataframe.index) - steps + 1):
+            formatted_data.append(dataframe.iloc[i:i + steps])
+        return np.array(formatted_data)
+
+    @staticmethod
+    def format_target_data(target, steps):
+        """
+        Returns the data on the correct format.
+        """
+        return np.array(target[steps - 1:])
 
 
 def main():
     """
     Main method for rnn script.
     """
-    data_loader = DataLoader('datasets\\no1_train.csv')
-    data_train = data_loader.get_data()
+    data_loader_train = DataLoader('datasets\\no1_train.csv')
+    data_loader_valid = DataLoader('datasets\\no1_validation.csv')
+    data_train = data_loader_train.get_data()
+    data_valid = data_loader_valid.get_data()
     cols_to_use = [
-        'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
-        'flow', 'y_yesterday', 'y_prev', 'cos_minute', 'sin_minute',
-        'cos_weekday', 'sin_weekday', 'cos_yearday', 'sin_yearday'
+        'hydro',
+        'micro',
+        'thermal',
+        'wind',
+        'river',
+        'total',
+        'sys_reg',
+        'flow',
+        'y_yesterday',
+        'y_prev',
+        'cos_minute',
+        'sin_minute',
+        'cos_weekday',
+        'sin_weekday',
+        'cos_yearday',
+        'sin_yearday',
     ]
+
     steps = 12
-    network = RecurringNeuralNetwork(len(cols_to_use),
-                                     num_points=steps,
-                                     weights_path='models/test')
-    network.fit(data_train, cols_to_use, epochs=1)
+    network = RecurringNeuralNetwork(
+        len(cols_to_use),
+        num_points=steps,
+        weights_path='models/test10epochswithvalid')
+
+    idx_to_remove = 288
+    data_x_train_stripped = data_train.iloc[idx_to_remove:][cols_to_use]
+    data_y_train_stripped = data_train.iloc[idx_to_remove:]['y']
+    train_x = RecurringNeuralNetwork.format_input_data(data_x_train_stripped,
+                                                       steps)
+    train_y = RecurringNeuralNetwork.format_target_data(
+        data_y_train_stripped, steps)
+    data_x_valid_stripped = data_valid.iloc[idx_to_remove:][cols_to_use]
+    data_y_valid_stripped = data_valid.iloc[idx_to_remove:]['y']
+    valid_x = RecurringNeuralNetwork.format_input_data(data_x_valid_stripped,
+                                                       steps)
+    valid_y = RecurringNeuralNetwork.format_target_data(
+        data_y_valid_stripped, steps)
+
+    loaded = network.load_all_weights()
+    if not loaded:
+        network.fit(train_x,
+                    train_y, (valid_x, valid_y),
+                    batch_size=32,
+                    epochs=10)
+    limit = 200
+    test_x = valid_x[:limit]
+    test_y = valid_y[:limit]
+    # test_x = train_x[:limit]
+    # test_y = train_y[:limit]
+    y_pred = network.predict(test_x)
+    print(f"pred: {y_pred[0][0]}, corr: {train_y[0]}")
+
+    plt.figure(figsize=(15, 7))
+    plt.title('Prediction')
+    plt.plot(test_y)
+    plt.plot(y_pred)
+    plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
