@@ -1,6 +1,5 @@
 """haakon8855"""
 
-from matplotlib import docstring
 import numpy as np
 import pandas as pd
 from scipy.stats.mstats import winsorize

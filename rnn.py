@@ -15,16 +15,19 @@ class RecurringNeuralNetwork:
 
     def __init__(self,
                  datapoint_width: int,
-                 num_points: int,
+                 steps: int,
                  weights_path: str = 'models/rnn'):
         self.datapoint_width = datapoint_width
-        self.num_points = num_points
+        self.steps = steps
         self.weights_path = weights_path
 
         self.model = ks.Sequential()
-        self.model.add(ks.layers.InputLayer((num_points, datapoint_width)))
+        self.model.add(ks.layers.InputLayer((steps, datapoint_width)))
+        self.model.add(ks.layers.LSTM(128, return_sequences=True))
+        self.model.add(ks.layers.Dropout(0.2))
         self.model.add(ks.layers.LSTM(64))
-        self.model.add(ks.layers.Dense(8, 'relu'))
+        self.model.add(ks.layers.Dropout(0.2))
+        self.model.add(ks.layers.Dense(32, 'relu'))
         self.model.add(ks.layers.Dense(1, 'linear'))
 
         self.model.summary()
@@ -60,6 +63,21 @@ class RecurringNeuralNetwork:
         """
         return self.model(input_x)
 
+    def predict_into_future(self, data, future_steps: int = 24):
+        """
+        Predicts the target value several timesteps into the future.
+        """
+        preds = []
+        pred_i = data.iloc[self.steps - 1]['y_prev']
+        for i in range(future_steps):
+            data.iat[i + self.steps - 1,
+                     data.columns.get_loc('y_prev')] = pred_i
+            input_i = data.iloc[i:i + self.steps]
+            input_i = np.array(input_i)[np.newaxis, :, :]
+            pred_i = self.predict(input_i).numpy()[0][0]
+            preds.append(pred_i)
+        return np.array(preds)
+
     def load_all_weights(self):
         """
         Load weights
@@ -93,12 +111,49 @@ class RecurringNeuralNetwork:
                      epochs=epochs)
 
 
+def plot_pred_future(data_valid, network, hist_size, amount_to_remove,
+                     pred_start, steps, max_future_steps, cols_to_use):
+    preds_idx_start = amount_to_remove + pred_start
+    preds_idx_stop = amount_to_remove + pred_start + steps + max_future_steps
+    pred_input = data_valid.iloc[preds_idx_start:preds_idx_stop][cols_to_use]
+    preds = network.predict_into_future(pred_input)
+
+    target_idx_start = amount_to_remove + pred_start - hist_size
+    target_idx_stop = preds_idx_stop
+    target = data_valid.iloc[target_idx_start:target_idx_stop]['y']
+
+    hist = list(target[:hist_size + steps])
+    last_hist = hist[-1]
+    target = target[hist_size + steps:hist_size + steps + max_future_steps]
+    target = list(target)
+    target.insert(0, last_hist)
+    preds = list(preds)
+    preds.insert(0, last_hist)
+
+    plt.figure(figsize=(15, 7))
+    plt.title('Prediction')
+    plt.plot(np.arange(0, hist_size + steps), hist, label='hist')
+    plt.plot(np.arange(hist_size + steps - 1,
+                       hist_size + steps + max_future_steps),
+             preds,
+             label='pred')
+    plt.plot(np.arange(hist_size + steps - 1,
+                       hist_size + steps + max_future_steps),
+             target,
+             label='target')
+    plt.legend()
+    plt.show()
+
+
 def main():
     """
     Main method for rnn script.
     """
-    weights_path = 'models/test10epochs50steps_test'
-    steps = 50
+    weights_path = 'models/test10epochs144stepsbiggernetwithdropout'
+    steps = 144
+    max_future_steps = 24
+    pred_start = 3000
+    hist_size = min(pred_start, steps)
     amount_to_remove = 288
     cols_to_use = [
         'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
@@ -116,25 +171,30 @@ def main():
         data_valid, cols_to_use, 'y', amount_to_remove, steps)
 
     network = RecurringNeuralNetwork(len(cols_to_use),
-                                     num_points=steps,
+                                     steps=steps,
                                      weights_path=weights_path)
     network.fit_or_load_model(train_x,
                               train_y, (valid_x, valid_y),
                               batch_size=32,
                               epochs=10)
 
-    limit = 200
-    test_x = valid_x[:limit]
-    test_y = valid_y[:limit]
-    y_pred = network.predict(test_x)
-    print(f"pred: {y_pred[0][0]}, corr: {train_y[0]}")
+    for i in range(0, 20):
+        plot_pred_future(data_valid, network, hist_size, amount_to_remove,
+                         pred_start + i * 5, steps, max_future_steps,
+                         cols_to_use)
 
-    plt.figure(figsize=(15, 7))
-    plt.title('Prediction')
-    plt.plot(test_y, label='target')
-    plt.plot(y_pred, label='pred')
-    plt.legend()
-    plt.show()
+    # limit = 200
+    # test_x = valid_x[:limit]
+    # test_y = valid_y[:limit]
+    # y_pred = network.predict(test_x)
+    # print(f"pred: {y_pred[0][0]}, corr: {train_y[0]}")
+
+    # plt.figure(figsize=(15, 7))
+    # plt.title('Prediction')
+    # plt.plot(test_y, label='target')
+    # plt.plot(y_pred, label='pred')
+    # plt.legend()
+    # plt.show()
 
 
 if __name__ == '__main__':
