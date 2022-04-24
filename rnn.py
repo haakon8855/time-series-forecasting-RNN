@@ -2,6 +2,7 @@
 
 from matplotlib import pyplot as plt
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from tensorflow import keras as ks
 
@@ -111,8 +112,30 @@ class RecurringNeuralNetwork:
                      epochs=epochs)
 
 
-def plot_pred_future(data_valid, network, hist_size, amount_to_remove,
-                     pred_start, steps, max_future_steps, cols_to_use):
+def plot_future_one_step(pred_start: int, limit: int, valid_x: np.array,
+                         valid_y: np.array, network: RecurringNeuralNetwork):
+    """
+    Predicts one step into the future for 'limit' amount of timesteps.
+    """
+    test_x = valid_x[pred_start:pred_start + limit]
+    test_y = valid_y[pred_start:pred_start + limit]
+    y_pred = network.predict(test_x)
+
+    plt.figure(figsize=(15, 7))
+    plt.title('Prediction')
+    plt.plot(test_y, label='target')
+    plt.plot(y_pred, label='pred')
+    plt.legend()
+    plt.show()
+
+
+def plot_pred_future(data_valid: pd.DataFrame, network: RecurringNeuralNetwork,
+                     hist_size: int, amount_to_remove: int, pred_start: int,
+                     steps: int, max_future_steps: int, cols_to_use: list):
+    """
+    Predicts 'steps' amount of steps into the future. Using the previously
+    predicted value as input for the next prediction.
+    """
     preds_idx_start = amount_to_remove + pred_start
     preds_idx_stop = amount_to_remove + pred_start + steps + max_future_steps
     pred_input = data_valid.iloc[preds_idx_start:preds_idx_stop][cols_to_use]
@@ -152,7 +175,7 @@ def main():
     weights_path = 'models/test10epochs144stepsbiggernetwithdropout'
     steps = 144
     max_future_steps = 24
-    pred_start = 3000
+    pred_start = 500
     hist_size = min(pred_start, steps)
     amount_to_remove = 288
     cols_to_use = [
@@ -178,23 +201,15 @@ def main():
                               batch_size=32,
                               epochs=10)
 
-    for i in range(0, 20):
+    limit = 300
+    for i in range(2):
+        plot_future_one_step(pred_start + i * limit, limit, valid_x, valid_y,
+                             network)
+
+    for i in range(20):
         plot_pred_future(data_valid, network, hist_size, amount_to_remove,
-                         pred_start + i * 5, steps, max_future_steps,
+                         pred_start + i * steps, steps, max_future_steps,
                          cols_to_use)
-
-    # limit = 200
-    # test_x = valid_x[:limit]
-    # test_y = valid_y[:limit]
-    # y_pred = network.predict(test_x)
-    # print(f"pred: {y_pred[0][0]}, corr: {train_y[0]}")
-
-    # plt.figure(figsize=(15, 7))
-    # plt.title('Prediction')
-    # plt.plot(test_y, label='target')
-    # plt.plot(y_pred, label='pred')
-    # plt.legend()
-    # plt.show()
 
 
 if __name__ == '__main__':
