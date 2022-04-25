@@ -223,7 +223,7 @@ def main():
     Main method for rnn script.
     """
     # model_name = '8epochs_144steps_gru_25drop_goodfit'
-    model_name = 'plot_loss'
+    model_name = '20epochs_144steps_gru_25drop_goodfit'
     weights_path = f'models/{model_name}'
     steps = 144
     max_future_steps = 24
