@@ -24,10 +24,10 @@ class RecurringNeuralNetwork:
 
         self.model = ks.Sequential()
         self.model.add(ks.layers.InputLayer((steps, datapoint_width)))
-        self.model.add(ks.layers.LSTM(128, return_sequences=True))
-        self.model.add(ks.layers.Dropout(0.2))
-        self.model.add(ks.layers.LSTM(64))
-        self.model.add(ks.layers.Dropout(0.2))
+        self.model.add(ks.layers.GRU(128, return_sequences=True))
+        self.model.add(ks.layers.Dropout(0.25))
+        self.model.add(ks.layers.GRU(64))
+        self.model.add(ks.layers.Dropout(0.25))
         self.model.add(ks.layers.Dense(32, 'relu'))
         self.model.add(ks.layers.Dense(1, 'linear'))
 
@@ -120,11 +120,12 @@ def plot_future_one_step(pred_start: int, limit: int, valid_x: np.array,
     test_x = valid_x[pred_start:pred_start + limit]
     test_y = valid_y[pred_start:pred_start + limit]
     y_pred = network.predict(test_x)
+    x_axis = np.arange(pred_start, pred_start + limit)
 
     plt.figure(figsize=(15, 7))
     plt.title('Prediction')
-    plt.plot(test_y, label='target')
-    plt.plot(y_pred, label='pred')
+    plt.plot(x_axis, test_y, label='target')
+    plt.plot(x_axis, y_pred, label='pred')
     plt.legend()
     plt.show()
 
@@ -155,13 +156,13 @@ def plot_pred_future(data_valid: pd.DataFrame, network: RecurringNeuralNetwork,
 
     plt.figure(figsize=(15, 7))
     plt.title('Prediction')
-    plt.plot(np.arange(0, hist_size + steps), hist, label='hist')
+    plt.plot(np.arange(0, hist_size + steps) + pred_start, hist, label='hist')
     plt.plot(np.arange(hist_size + steps - 1,
-                       hist_size + steps + max_future_steps),
+                       hist_size + steps + max_future_steps) + pred_start,
              preds,
              label='pred')
     plt.plot(np.arange(hist_size + steps - 1,
-                       hist_size + steps + max_future_steps),
+                       hist_size + steps + max_future_steps) + pred_start,
              target,
              label='target')
     plt.legend()
@@ -172,10 +173,10 @@ def main():
     """
     Main method for rnn script.
     """
-    weights_path = 'models/test10epochs144stepsbiggernetwithdropout'
+    weights_path = 'models/test10epochs144stepsbiggernetwithdropoutnowonGRUhigherdropoutagain'
     steps = 144
     max_future_steps = 24
-    pred_start = 500
+    pred_start = 6000
     hist_size = min(pred_start, steps)
     amount_to_remove = 288
     cols_to_use = [
@@ -199,7 +200,7 @@ def main():
     network.fit_or_load_model(train_x,
                               train_y, (valid_x, valid_y),
                               batch_size=32,
-                              epochs=10)
+                              epochs=8)
 
     limit = 300
     for i in range(2):
@@ -208,8 +209,8 @@ def main():
 
     for i in range(20):
         plot_pred_future(data_valid, network, hist_size, amount_to_remove,
-                         pred_start + i * steps, steps, max_future_steps,
-                         cols_to_use)
+                         pred_start + i * max_future_steps, steps,
+                         max_future_steps, cols_to_use)
 
 
 if __name__ == '__main__':
