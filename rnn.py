@@ -123,14 +123,14 @@ def plot_future_one_step(pred_start: int, limit: int, valid_x: np.array,
     x_axis = np.arange(pred_start, pred_start + limit)
 
     plt.figure(figsize=(15, 7))
-    plt.title('Prediction')
+    plt.title('Predict one step ahead')
     plt.plot(x_axis, test_y, label='target')
     plt.plot(x_axis, y_pred, label='pred')
     plt.legend()
     plt.show()
 
 
-def plot_pred_future(data_valid: pd.DataFrame, network: RecurringNeuralNetwork,
+def get_future_plots(data_valid: pd.DataFrame, network: RecurringNeuralNetwork,
                      hist_size: int, amount_to_remove: int, pred_start: int,
                      steps: int, max_future_steps: int, cols_to_use: list):
     """
@@ -154,18 +154,49 @@ def plot_pred_future(data_valid: pd.DataFrame, network: RecurringNeuralNetwork,
     preds = list(preds)
     preds.insert(0, last_hist)
 
-    plt.figure(figsize=(15, 7))
-    plt.title('Prediction')
-    plt.plot(np.arange(0, hist_size + steps) + pred_start, hist, label='hist')
-    plt.plot(np.arange(hist_size + steps - 1,
-                       hist_size + steps + max_future_steps) + pred_start,
-             preds,
-             label='pred')
-    plt.plot(np.arange(hist_size + steps - 1,
-                       hist_size + steps + max_future_steps) + pred_start,
-             target,
-             label='target')
-    plt.legend()
+    historic = (np.arange(0, hist_size + steps) + pred_start, hist)
+    targets = (np.arange(hist_size + steps - 1,
+                         hist_size + steps + max_future_steps) + pred_start,
+               target)
+    predictions = (np.arange(hist_size + steps - 1, hist_size + steps +
+                             max_future_steps) + pred_start, preds)
+    return historic, targets, predictions
+
+
+def plot_pred_future_multiple(data_valid: pd.DataFrame,
+                              network: RecurringNeuralNetwork,
+                              num_plots: int,
+                              hist_size: int,
+                              amount_to_remove: int,
+                              pred_start: int,
+                              steps: int,
+                              max_future_steps: int,
+                              cols_to_use: list,
+                              randomize_location: bool = True):
+    """
+    Predicts 'steps' amount of steps into the future. Using the previously
+    predicted value as input for the next prediction.
+    """
+    rows = 3
+    fig, axs = plt.subplots(nrows=rows,
+                            ncols=(int(np.ceil(num_plots / rows))),
+                            figsize=(15, 10))
+    for i in range(len(axs.ravel())):
+        axi = axs.ravel()[i]
+        start_location = pred_start + i * max_future_steps
+        if randomize_location:
+            start_location = np.random.randint(
+                amount_to_remove * 2,
+                len(data_valid) - amount_to_remove)
+        historic, targets, predictions = get_future_plots(
+            data_valid, network, hist_size, amount_to_remove, start_location,
+            steps, max_future_steps, cols_to_use)
+        axi.set_title(f'Pred #{i}')
+        axi.plot(historic[0], historic[1], label='hist')
+        axi.plot(predictions[0], predictions[1], label='pred')
+        axi.plot(targets[0], targets[1], label='target')
+    fig.suptitle('Predict 2 hrs')
+    fig.legend(['hist', 'pred', 'target'])
     plt.show()
 
 
@@ -176,8 +207,8 @@ def main():
     weights_path = 'models/8epochs_144steps_gru_25drop_goodfit'
     steps = 144
     max_future_steps = 24
-    pred_start = 6000
-    hist_size = min(pred_start, steps)
+    pred_start = 2000
+    hist_size = 0  #min(pred_start, steps)
     amount_to_remove = 288
     cols_to_use = [
         'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
@@ -207,10 +238,17 @@ def main():
         plot_future_one_step(pred_start + i * limit, limit, valid_x, valid_y,
                              network)
 
-    for i in range(20):
-        plot_pred_future(data_valid, network, hist_size, amount_to_remove,
-                         pred_start + i * max_future_steps, steps,
-                         max_future_steps, cols_to_use)
+    num_plots = 9
+    plot_pred_future_multiple(data_valid,
+                              network,
+                              num_plots,
+                              hist_size,
+                              amount_to_remove,
+                              pred_start,
+                              steps,
+                              max_future_steps,
+                              cols_to_use,
+                              randomize_location=True)
 
 
 if __name__ == '__main__':

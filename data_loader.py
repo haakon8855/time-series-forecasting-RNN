@@ -129,7 +129,7 @@ class DataLoader:
         between 31. dec and 1. jan.
         """
         day_of_year = pd.to_datetime(data['start_time']).dt.day_of_year
-        day_of_year_norm = 2 * np.pi * day_of_year / day_of_year.max()
+        day_of_year_norm = 2 * np.pi * day_of_year / 365.25
         sin_yearday = np.sin(day_of_year_norm)
         cos_yearday = np.cos(day_of_year_norm)
 
