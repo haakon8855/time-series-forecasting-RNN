@@ -51,12 +51,13 @@ class RecurringNeuralNetwork:
         """
         Trains the network on the given dataset.
         """
-        self.model.fit(x=train_x,
-                       y=train_y,
-                       validation_data=validation_data,
-                       batch_size=batch_size,
-                       epochs=epochs)
+        history = self.model.fit(x=train_x,
+                                 y=train_y,
+                                 validation_data=validation_data,
+                                 batch_size=batch_size,
+                                 epochs=epochs)
         self.model.save_weights(filepath=self.weights_path)
+        return history
 
     def predict(self, input_x):
         """
@@ -105,11 +106,13 @@ class RecurringNeuralNetwork:
         """
         loaded = self.load_all_weights()
         if not loaded:
-            self.fit(train_x,
-                     train_y,
-                     validation_data,
-                     batch_size=batch_size,
-                     epochs=epochs)
+            history = self.fit(train_x,
+                               train_y,
+                               validation_data,
+                               batch_size=batch_size,
+                               epochs=epochs)
+            return history
+        return None
 
 
 def plot_future_one_step(pred_start: int, limit: int, valid_x: np.array,
@@ -200,14 +203,31 @@ def plot_pred_future_multiple(data_valid: pd.DataFrame,
     plt.show()
 
 
+def plot_loss_history(history, model_name: str = "loss_plot"):
+    """
+    Plots the loss over time during training.
+    """
+    training_loss = history.history['loss']
+    validation_loss = history.history['val_loss']
+    plt.clf()
+    plt.title('Loss')
+    plt.plot(training_loss, label='Training loss')
+    plt.plot(validation_loss, label='Validation loss')
+    plt.legend()
+    plt.savefig(f'plots/{model_name}.png')
+    plt.show()
+
+
 def main():
     """
     Main method for rnn script.
     """
-    weights_path = 'models/8epochs_144steps_gru_25drop_goodfit'
+    # model_name = '8epochs_144steps_gru_25drop_goodfit'
+    model_name = 'plot_loss'
+    weights_path = f'models/{model_name}'
     steps = 144
     max_future_steps = 24
-    pred_start = 2000
+    pred_start = 4000
     hist_size = 0  #min(pred_start, steps)
     amount_to_remove = 288
     cols_to_use = [
@@ -228,10 +248,13 @@ def main():
     network = RecurringNeuralNetwork(len(cols_to_use),
                                      steps=steps,
                                      weights_path=weights_path)
-    network.fit_or_load_model(train_x,
-                              train_y, (valid_x, valid_y),
-                              batch_size=32,
-                              epochs=8)
+    history = network.fit_or_load_model(train_x,
+                                        train_y, (valid_x, valid_y),
+                                        batch_size=32,
+                                        epochs=20)
+
+    if history is not None:
+        plot_loss_history(history, model_name)
 
     limit = 300
     for i in range(2):
@@ -239,16 +262,17 @@ def main():
                              network)
 
     num_plots = 9
-    plot_pred_future_multiple(data_valid,
-                              network,
-                              num_plots,
-                              hist_size,
-                              amount_to_remove,
-                              pred_start,
-                              steps,
-                              max_future_steps,
-                              cols_to_use,
-                              randomize_location=True)
+    for _ in range(2):
+        plot_pred_future_multiple(data_valid,
+                                  network,
+                                  num_plots,
+                                  hist_size,
+                                  amount_to_remove,
+                                  pred_start,
+                                  steps,
+                                  max_future_steps,
+                                  cols_to_use,
+                                  randomize_location=True)
 
 
 if __name__ == '__main__':

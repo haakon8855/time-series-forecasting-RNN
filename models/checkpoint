@@ -1,2 +1,2 @@
-model_checkpoint_path: "test10epochs144stepsbiggernetwithdropoutnowonGRUhigherdropoutagain"
-all_model_checkpoint_paths: "test10epochs144stepsbiggernetwithdropoutnowonGRUhigherdropoutagain"
+model_checkpoint_path: "plot_loss"
+all_model_checkpoint_paths: "plot_loss"
