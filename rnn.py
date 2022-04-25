@@ -173,7 +173,7 @@ def main():
     """
     Main method for rnn script.
     """
-    weights_path = 'models/test10epochs144stepsbiggernetwithdropoutnowonGRUhigherdropoutagain'
+    weights_path = 'models/8epochs_144steps_gru_25drop_goodfit'
     steps = 144
     max_future_steps = 24
     pred_start = 6000
