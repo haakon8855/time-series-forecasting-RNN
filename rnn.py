@@ -236,28 +236,23 @@ def main():
         'flow', 'y_yesterday', 'y_prev', 'cos_minute', 'sin_minute',
         'cos_weekday', 'sin_weekday', 'cos_yearday', 'sin_yearday'
     ]
-    print("Frick")
 
     data_loader = DataLoader()
     data_train = data_loader.get_processed_data('datasets\\no1_train.csv')
     data_valid = data_loader.get_processed_data('datasets\\no1_validation.csv')
-    print("Frick2")
 
     train_x, train_y = DataLoader.strip_and_format_data(
         data_train, cols_to_use, 'y', amount_to_remove, steps)
     valid_x, valid_y = DataLoader.strip_and_format_data(
         data_valid, cols_to_use, 'y', amount_to_remove, steps)
-    print("Frick3")
 
     network = RecurringNeuralNetwork(len(cols_to_use),
                                      steps=steps,
                                      weights_path=weights_path)
-    print("Frick4")
     history = network.fit_or_load_model(train_x,
                                         train_y, (valid_x, valid_y),
                                         batch_size=32,
                                         epochs=10)
-    print("Frick5")
 
     if history is not None:
         plot_loss_history(history, model_name)
