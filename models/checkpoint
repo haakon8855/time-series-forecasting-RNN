@@ -1,2 +1,2 @@
-model_checkpoint_path: "10epochs_144steps_gru_25drop_goodfit"
-all_model_checkpoint_paths: "10epochs_144steps_gru_25drop_goodfit"
+model_checkpoint_path: "10epochs_144steps_gru_25drop_goodfit_without_time"
+all_model_checkpoint_paths: "10epochs_144steps_gru_25drop_goodfit_without_time"

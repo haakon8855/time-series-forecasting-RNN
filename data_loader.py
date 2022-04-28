@@ -173,7 +173,7 @@ class DataLoader:
         return data_x_train_stripped, data_y_train_stripped
 
     @staticmethod
-    def format_input_data(data, steps):
+    def format_input_data(data, steps, randomize_y_prev=False):
         """
         Returns the input data on the correct format.
         """
@@ -182,8 +182,9 @@ class DataLoader:
         for i in range(len(dataframe.index) - steps + 1):
             formatted_data.append(dataframe.iloc[i:i + steps])
         formatted_data = np.array(formatted_data)
-        for i in range(len(formatted_data)):
-            formatted_data[i, -1, -7] = np.random.random() * 2 - 1
+        if randomize_y_prev:
+            for i in range(len(formatted_data)):
+                formatted_data[i, -1, -7] = np.random.random() * 2 - 1
         return formatted_data
 
     @staticmethod
@@ -194,16 +195,21 @@ class DataLoader:
         return np.array(target[steps - 1:])
 
     @staticmethod
-    def format_data(data_x, data_y, steps):
+    def format_data(data_x, data_y, steps, randomize_y_prev=False):
         """
         Returns the data on the correct format.
         """
-        train_x = DataLoader.format_input_data(data_x, steps)
+        train_x = DataLoader.format_input_data(data_x, steps, randomize_y_prev)
         train_y = DataLoader.format_target_data(data_y, steps)
         return train_x, train_y
 
     @staticmethod
-    def strip_and_format_data(data, cols_x, cols_y, amount_to_remove, steps):
+    def strip_and_format_data(data,
+                              cols_x,
+                              cols_y,
+                              amount_to_remove,
+                              steps,
+                              randomize_y_prev=False):
         """
         Strips the data from nan values and aranges it on the correct format
         for inputting to the network.
@@ -211,7 +217,8 @@ class DataLoader:
         data_x_train_stripped, data_y_train_stripped = DataLoader.strip_and_split_x_y(
             data, cols_x, cols_y, amount_to_remove)
         train_x, train_y = DataLoader.format_data(data_x_train_stripped,
-                                                  data_y_train_stripped, steps)
+                                                  data_y_train_stripped, steps,
+                                                  randomize_y_prev)
         return train_x, train_y
 
 

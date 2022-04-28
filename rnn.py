@@ -224,27 +224,40 @@ def main():
     """
     # model_name = '8epochs_144steps_gru_25drop_goodfit'
     # model_name = '20epochs_144steps_gru_25drop_goodfit'
-    model_name = '10epochs_144steps_gru_25drop_goodfit'
+    # model_name = '10epochs_144steps_gru_25drop_goodfit' # ypred random
+    model_name = '10epochs_144steps_gru_25drop_goodfit_without_time'
     weights_path = f'models/{model_name}'
     steps = 144
     max_future_steps = 24
     pred_start = 4000
     hist_size = 0  #min(pred_start, steps)
     amount_to_remove = 288
+    # cols_to_use = [
+    #     'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
+    #     'flow', 'y_yesterday', 'y_prev', 'cos_minute', 'sin_minute',
+    #     'cos_weekday', 'sin_weekday', 'cos_yearday', 'sin_yearday'
+    # ]
     cols_to_use = [
         'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
-        'flow', 'y_yesterday', 'y_prev', 'cos_minute', 'sin_minute',
-        'cos_weekday', 'sin_weekday', 'cos_yearday', 'sin_yearday'
+        'flow', 'y_yesterday', 'y_prev'
     ]
 
     data_loader = DataLoader()
     data_train = data_loader.get_processed_data('datasets\\no1_train.csv')
     data_valid = data_loader.get_processed_data('datasets\\no1_validation.csv')
 
-    train_x, train_y = DataLoader.strip_and_format_data(
-        data_train, cols_to_use, 'y', amount_to_remove, steps)
-    valid_x, valid_y = DataLoader.strip_and_format_data(
-        data_valid, cols_to_use, 'y', amount_to_remove, steps)
+    train_x, train_y = DataLoader.strip_and_format_data(data_train,
+                                                        cols_to_use,
+                                                        'y',
+                                                        amount_to_remove,
+                                                        steps,
+                                                        randomize_y_prev=False)
+    valid_x, valid_y = DataLoader.strip_and_format_data(data_valid,
+                                                        cols_to_use,
+                                                        'y',
+                                                        amount_to_remove,
+                                                        steps,
+                                                        randomize_y_prev=False)
 
     network = RecurringNeuralNetwork(len(cols_to_use),
                                      steps=steps,
