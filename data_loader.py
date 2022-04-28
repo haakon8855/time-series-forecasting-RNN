@@ -179,8 +179,14 @@ class DataLoader:
         """
         formatted_data = []
         dataframe = data.copy()
+        # formatted_i = dataframe.iloc[0:steps]
         for i in range(len(dataframe.index) - steps + 1):
-            formatted_data.append(dataframe.iloc[i:i + steps])
+            # formatted_i = dataframe.iloc[i:i + steps].copy()
+            formatted_i = np.array(dataframe.iloc[i:i + steps])
+            # Add noise to very last y_prev
+            # formatted_i.iloc[-1]['y_prev'] = np.random.random() * 2 - 1
+            formatted_i[-1][-7] = np.random.random() * 2 - 1
+            formatted_data.append(formatted_i)
         return np.array(formatted_data)
 
     @staticmethod
