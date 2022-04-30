@@ -219,10 +219,10 @@ def main():
     """
     Main function for running this python script.
     """
-    imbalance_forecasting = ImbalanceForecasting("config/config1.ini")
-    # imbalance_forecasting = ImbalanceForecasting("config/config2.ini")
-    # imbalance_forecasting = ImbalanceForecasting("config/config3.ini")
-    imbalance_forecasting.run()
+    forecast = ImbalanceForecasting("config/config1.ini")  # Best model
+    # forecast = ImbalanceForecasting("config/config2.ini") # Timeless model
+    # forecast = ImbalanceForecasting("config/config3.ini") # 20 epoch model
+    forecast.run()
 
 
 if __name__ == "__main__":
