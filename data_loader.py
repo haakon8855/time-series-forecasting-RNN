@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy import interpolate
 from scipy.stats.mstats import winsorize
 from sklearn.preprocessing import MinMaxScaler
 
@@ -20,8 +21,36 @@ class DataLoader:
         Returns the dataframe loaded, preprocessed and with engineered features.
         """
         data = pd.read_csv(filepath)
+        data = self.add_structural_imbalance(data)
         data = self.apply_preprocessing(data)
         data = self.apply_feature_engineering(data)
+        return data
+
+    def add_structural_imbalance(self, data):
+        """
+        Adds structural imbalance as a feature.
+        """
+        # Add load variable
+        data['load'] = data['total'] - data['flow']
+
+        # Get first index for where to start interpolation
+        minutes = np.array(
+            pd.to_datetime(data['start_time'].iloc[:12]).dt.minute)
+        start_index = np.where(minutes == 30)[0][0]
+
+        # x-values of load-column
+        load_x = np.arange(0, len(data['load']))
+        # x-values for each point in spline
+        spline_load_x = np.arange(start_index, len(data['load']), 12)
+        # y-values for each point in spline
+        spline_load_y = np.array(data['load'].iloc[spline_load_x])
+
+        # Fit spline on points
+        tck = interpolate.splrep(spline_load_x, spline_load_y)
+        # Get interpolated values of spline
+        demand_y = interpolate.splev(load_x, tck)
+        struct_imbal = data['load'] - demand_y
+        data['struct_imbal'] = struct_imbal
         return data
 
     def apply_preprocessing(self, data):
@@ -66,7 +95,7 @@ class DataLoader:
         """
         columns_to_scale = [
             'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
-            'flow', 'y'
+            'flow', 'y', 'struct_imbal'
         ]
         if not self.scaler_is_trained:
             self.scaler.fit(data[columns_to_scale])
