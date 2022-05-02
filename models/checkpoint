@@ -1,2 +1,2 @@
-model_checkpoint_path: "10epochs_144steps_gru_25drop_altered"
-all_model_checkpoint_paths: "10epochs_144steps_gru_25drop_altered"
+model_checkpoint_path: "10epochs_altered_forecasting"
+all_model_checkpoint_paths: "10epochs_altered_forecasting"
