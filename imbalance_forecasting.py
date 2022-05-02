@@ -33,6 +33,7 @@ class ImbalanceForecasting:
         self.randomize_plot_location = global_conf[
             'randomize_plot_location'] == 'True'
         self.cols_to_use = json.loads(global_conf['cols_to_use'])
+        self.altered_forecasting = global_conf['altered_forecasting'] == 'True'
 
         self.data_train = None
         self.data_valid = None
@@ -43,7 +44,7 @@ class ImbalanceForecasting:
         self.history = None
 
         # Initialize classes
-        self.data_loader = DataLoader()
+        self.data_loader = DataLoader(self.altered_forecasting)
         self.network = RecurringNeuralNetwork(len(self.cols_to_use),
                                               steps=self.steps,
                                               weights_path=self.weights_path)
@@ -150,10 +151,25 @@ class ImbalanceForecasting:
         target_idx_stop = preds_idx_stop
         target = self.data_valid.iloc[target_idx_start:target_idx_stop]['y']
 
+        if self.altered_forecasting:
+            target_without = self.data_valid.iloc[
+                target_idx_start:target_idx_stop]['y']
+            target = self.data_valid.iloc[target_idx_start:target_idx_stop][
+                'y_with_struct_imbal']
+            target_struct_imbal = target - target_without
+
         hist = list(target[:self.hist_size + self.steps])
         last_hist = hist[-1]
         target = target[self.hist_size + self.steps:self.hist_size +
                         self.steps + self.max_future_steps]
+        if self.altered_forecasting:
+            # target_struct_imbal = self.data_valid.iloc[
+            #     target_idx_start:target_idx_stop]['struct_imbal']
+            target_struct_imbal = target_struct_imbal[self.hist_size + self.
+                                                      steps:self.hist_size +
+                                                      self.steps +
+                                                      self.max_future_steps]
+            preds += target_struct_imbal
         target = list(target)
         target.insert(0, last_hist)
         preds = list(preds)
@@ -219,11 +235,11 @@ def main():
     """
     Main function for running this python script.
     """
-    # forecast = ImbalanceForecasting("config/config1.ini")  # Best model
+    forecast = ImbalanceForecasting("config/config1.ini")  # Best model
     # forecast = ImbalanceForecasting("config/config2.ini")  # Timeless model
     # forecast = ImbalanceForecasting("config/config3.ini")  # 20 epoch model
-    forecast = ImbalanceForecasting(
-        "config/config4.ini")  # Altered forecasting
+    # forecast = ImbalanceForecasting("config/config4.ini")  # struct_imbal as feat.
+    # forecast = ImbalanceForecasting("config/config5.ini")  # Altered target
     forecast.run()
 
 
