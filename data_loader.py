@@ -12,7 +12,8 @@ class DataLoader:
     Loads the data from file and runs preprocessing on the dataset.
     """
 
-    def __init__(self):
+    def __init__(self, altered_forecasting: bool = False):
+        self.altered_forecasting = altered_forecasting
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
         self.scaler_is_trained = False
 
@@ -51,6 +52,9 @@ class DataLoader:
         demand_y = interpolate.splev(load_x, tck)
         struct_imbal = data['load'] - demand_y
         data['struct_imbal'] = struct_imbal
+        data['y_with_struct_imbal'] = data['y']
+        if self.altered_forecasting:
+            data['y'] = data['y'] - data['struct_imbal']
         return data
 
     def apply_preprocessing(self, data):
@@ -58,7 +62,7 @@ class DataLoader:
         Applies the necessary preprocessing steps to the loaded data.
         """
         # Create two copies of the original data. y_original will remain unchanged,
-        # y and y* will be changed.
+        # y will be changed.
         data['y_original'] = data['y']
         # Winsorize one percent of the data
         data = self.winsorize_one_percent(data)
@@ -85,6 +89,9 @@ class DataLoader:
         Winsorizes the data in the y-column. This is done by setting the upper
         0.5% and lower 0.5% to an upper and a lower bound.
         """
+        winsorized = winsorize(data['y_with_struct_imbal'],
+                               limits=[0.005, 0.005])
+        data['y_with_struct_imbal'] = np.array(winsorized)
         winsorized = winsorize(data['y'], limits=[0.005, 0.005])
         data['y'] = np.array(winsorized)
         return data
@@ -95,7 +102,7 @@ class DataLoader:
         """
         columns_to_scale = [
             'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
-            'flow', 'y', 'struct_imbal'
+            'flow', 'y', 'y_with_struct_imbal', 'struct_imbal'
         ]
         if not self.scaler_is_trained:
             self.scaler.fit(data[columns_to_scale])
@@ -240,7 +247,7 @@ class DataLoader:
                               steps,
                               randomize_y_prev=False):
         """
-        Strips the data from nan values and aranges it on the correct format
+        Strips the data from nan values and aranges it on the correct formstrip_and_split_x_yat
         for inputting to the network.
         """
         data_x_train_stripped, data_y_train_stripped = DataLoader.strip_and_split_x_y(
