@@ -98,15 +98,17 @@ class DataLoader:
 
     def scale_data(self, data):
         """
-        Scales the given data using the rescaling method.
+        Scales the given data using MinMaxScaler from sklearn.
         """
         columns_to_scale = [
             'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
             'flow', 'y', 'y_with_struct_imbal', 'struct_imbal'
         ]
         if not self.scaler_is_trained:
+            # Train/fit scaler on training set
             self.scaler.fit(data[columns_to_scale])
             self.scaler_is_trained = True
+        # Scale data
         data[columns_to_scale] = self.scaler.transform(data[columns_to_scale])
         return data
 
@@ -131,8 +133,10 @@ class DataLoader:
         Sine and cosine of minute of day is also added to have a smaller gap
         between 23:59 and 00:00.
         """
+        # Get minute of day
         min_of_day = pd.to_datetime(
             data['start_time']).dt.minute + data['hour_of_day'] * 60
+        # Convert minute of day to sine and cosine waves
         min_of_day_norm = 2 * np.pi * min_of_day / min_of_day.max()
         sin_minute = round(np.sin(min_of_day_norm), 6)
         cos_minute = np.cos(min_of_day_norm)
@@ -148,7 +152,9 @@ class DataLoader:
         Sine and cosine of day of week is also added to have smaller gap
         between sunday and monday.
         """
+        # Get day of week
         day_of_week = pd.to_datetime(data['start_time']).dt.day_of_week
+        # Convert day of week to sine and cosine waves
         day_of_week_norm = 2 * np.pi * day_of_week / day_of_week.max()
         sin_weekday = round(np.sin(day_of_week_norm), 2)
         cos_weekday = np.cos(day_of_week_norm)
@@ -164,7 +170,9 @@ class DataLoader:
         Sine and cosine of day of year is also added to have smaller gap
         between 31. dec and 1. jan.
         """
+        # Get day of year
         day_of_year = pd.to_datetime(data['start_time']).dt.day_of_year
+        # Convert day of year to sine and cosine waves
         day_of_year_norm = 2 * np.pi * day_of_year / 365.25
         sin_yearday = np.sin(day_of_year_norm)
         cos_yearday = np.cos(day_of_year_norm)
@@ -186,15 +194,21 @@ class DataLoader:
         Add shifted daily mean. Calculate the mean value of y from the day before
         and store it for each timestep in the current day.
         """
+        # Create new column containing only the date (not time)
         data['date'] = pd.to_datetime(data['start_time']).dt.date
+        # Get the mean value of the y-column for each day
         daily_mean = data.groupby(['date']).y.mean()
+        # Handle the data to allow for merging with main dataframe
         daily_mean = pd.DataFrame(daily_mean)
         daily_mean['date'] = daily_mean.index
         daily_mean = daily_mean.set_index(np.arange(len(daily_mean)))
         daily_mean = daily_mean.rename(columns={'y': 'daily_mean'})
 
+        # Shift the daily mean one step in order to get yesterday's daily mean
         daily_mean['daily_mean'] = daily_mean['daily_mean'].shift(1)
 
+        # Merge the data on the date column so each row gets a value
+        # for yesterday's daily mean.
         data = data.merge(daily_mean, left_on='date', right_on='date')
         return data
 
@@ -215,10 +229,15 @@ class DataLoader:
         """
         formatted_data = []
         dataframe = data.copy()
+        # For each row in the dataframe except the last 'steps' rows
         for i in range(len(dataframe.index) - steps + 1):
+            # Push 'steps' amount of rows to the list, starting at index i
             formatted_data.append(dataframe.iloc[i:i + steps])
         formatted_data = np.array(formatted_data)
         if randomize_y_prev:
+            # Randomize the very last y_prev-value with random noise
+            # This encourages the model to rely less on the very last
+            # y_prev-value
             for i in range(len(formatted_data)):
                 formatted_data[i, -1, -7] = np.random.random() * 2 - 1
         return formatted_data
@@ -250,26 +269,11 @@ class DataLoader:
         Strips the data from nan values and aranges it on the correct formstrip_and_split_x_yat
         for inputting to the network.
         """
+        # Strip data from NaN, remove unused cols and split into x and y:
         data_x_train_stripped, data_y_train_stripped = DataLoader.strip_and_split_x_y(
             data, cols_x, cols_y, amount_to_remove)
+        # Arange x using a sliding window and arange y to be the target of x:
         train_x, train_y = DataLoader.format_data(data_x_train_stripped,
                                                   data_y_train_stripped, steps,
                                                   randomize_y_prev)
         return train_x, train_y
-
-
-def main():
-    """
-    Main function of the data loader script.
-    """
-    loader_train = DataLoader()
-    print(
-        loader_train.get_processed_data('datasets/no1_train.csv').drop([
-            'hydro', 'micro', 'thermal', 'wind', 'river', 'total', 'sys_reg',
-            'flow', 'min_of_day', 'day_of_week', 'cos_weekday', 'sin_weekday'
-        ],
-                                                                       axis=1))
-
-
-if __name__ == "__main__":
-    main()

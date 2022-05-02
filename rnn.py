@@ -18,6 +18,7 @@ class RecurringNeuralNetwork:
         self.steps = steps
         self.weights_path = weights_path
 
+        # Build network
         self.model = ks.Sequential()
         self.model.add(ks.layers.InputLayer((steps, datapoint_width)))
         self.model.add(ks.layers.GRU(128, return_sequences=True))
@@ -65,20 +66,26 @@ class RecurringNeuralNetwork:
         """
         Predicts the target value several timesteps into the future.
         """
+        # Predictions made by network
         preds = []
+        # Zero'th pred_i = y_prev of i-1
         pred_i = data.iloc[self.steps - 1]['y_prev']
         for i in range(future_steps):
+            # Set the value of y_prev to the previously predicted value
             data.iat[i + self.steps - 1,
                      data.columns.get_loc('y_prev')] = pred_i
+            # Get the input values to the network
             input_i = data.iloc[i:i + self.steps]
             input_i = np.array(input_i)[np.newaxis, :, :]
+            # Get the prediction from the network
             pred_i = self.predict(input_i).numpy()[0][0]
+            # Save predictions
             preds.append(pred_i)
         return np.array(preds)
 
     def load_all_weights(self):
         """
-        Load weights
+        Load weights from disk.
         """
         try:
             self.model.load_weights(filepath=self.weights_path)

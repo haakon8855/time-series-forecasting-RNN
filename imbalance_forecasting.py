@@ -22,17 +22,30 @@ class ImbalanceForecasting:
         # Fetch config
         global_conf = self.config['GLOBALS']
         self.model_name = global_conf['model_name']
+        # Path to the weights of the model
         self.weights_path = f'models/{self.model_name}'
+        # Number of epochs to train the network
         self.epochs = int(global_conf['epochs'])
+
+        # Features to pass into the network
+        self.cols_to_use = json.loads(global_conf['cols_to_use'])
+        # Number of timesteps into the past the network can 'see'
         self.steps = int(global_conf['steps'])
-        self.max_future_steps = int(global_conf['max_future_steps'])
-        self.pred_start = int(global_conf['pred_start'])
-        self.hist_size = int(global_conf['hist_size'])
+        # Amount of rows to remove from the datasets
         self.amount_to_remove = int(global_conf['amount_to_remove'])
+        # Maximum amount of steps to predict into the future
+        self.max_future_steps = int(global_conf['max_future_steps'])
+        # At which index to start predictions at
+        self.pred_start = int(global_conf['pred_start'])
+        # Number of timesteps to show before the prediction window
+        self.hist_size = int(global_conf['hist_size'])
+
+        # Whether to randomize the very last y_prev in each input to the network
         self.randomize_y_prev = global_conf['randomize_y_prev'] == 'True'
+        # Whether to randomize the index to start predictions at
         self.randomize_plot_location = global_conf[
             'randomize_plot_location'] == 'True'
-        self.cols_to_use = json.loads(global_conf['cols_to_use'])
+        # Whether to do the altered forecasting task or not
         self.altered_forecasting = global_conf['altered_forecasting'] == 'True'
 
         self.data_train = None
@@ -78,6 +91,9 @@ class ImbalanceForecasting:
         Trains the network on the dataset or loads pretrained weights if
         available.
         """
+        # Train the network (or load pretrained weights from file)
+        # and store the history of the training (in order to plot
+        # training loss and validation loss over time)
         self.history = self.network.fit_or_load_model(
             self.train_x,
             self.train_y, (self.valid_x, self.valid_y),
@@ -141,40 +157,57 @@ class ImbalanceForecasting:
         Predicts 'steps' amount of steps into the future. Using the previously
         predicted value as input for the next prediction.
         """
+        # Where to start predictions
         preds_idx_start = self.amount_to_remove + start_location
+        # Where to stop predictions
         preds_idx_stop = self.amount_to_remove + start_location + self.steps + self.max_future_steps
+        # Get input to the network for predictions
         pred_input = self.data_valid.iloc[preds_idx_start:preds_idx_stop][
             self.cols_to_use]
+        # Get predictions
         preds = self.network.predict_into_future(pred_input)
 
+        # Where the target plot starts and stops (usually 'steps' amount of timesteps
+        # before where the predictions start, to show all information the
+        # network gets).
         target_idx_start = self.amount_to_remove + start_location - self.hist_size
         target_idx_stop = preds_idx_stop
+        # The target for the predictions in the whole time-frame
         target = self.data_valid.iloc[target_idx_start:target_idx_stop]['y']
 
         if self.altered_forecasting:
+            # Calculate the structured imbalance if running the altered
+            # forecasting task. This calculated value will be later added
+            # to the predictions.
             target_without = self.data_valid.iloc[
                 target_idx_start:target_idx_stop]['y']
             target = self.data_valid.iloc[target_idx_start:target_idx_stop][
                 'y_with_struct_imbal']
             target_struct_imbal = target - target_without
 
+        # The historic target (target for the input data)
         hist = list(target[:self.hist_size + self.steps])
         last_hist = hist[-1]
+        # Prediction window target (target for the predictions)
         target = target[self.hist_size + self.steps:self.hist_size +
                         self.steps + self.max_future_steps]
         if self.altered_forecasting:
-            # target_struct_imbal = self.data_valid.iloc[
-            #     target_idx_start:target_idx_stop]['struct_imbal']
+            # Re-add the structural imbalance to the predictions to be able
+            # to compare the values with the actual target value:
             target_struct_imbal = target_struct_imbal[self.hist_size + self.
                                                       steps:self.hist_size +
                                                       self.steps +
                                                       self.max_future_steps]
             preds += target_struct_imbal
+
+        # Change datatype and prepend the last value from history
+        # to create connected graphs.
         target = list(target)
         target.insert(0, last_hist)
         preds = list(preds)
         preds.insert(0, last_hist)
 
+        # Create corresponding x-values for the x-axis and return values for plotting.
         historic = (np.arange(0, self.hist_size + self.steps) + start_location,
                     hist)
         targets = (
@@ -199,15 +232,19 @@ class ImbalanceForecasting:
         fig, axs = plt.subplots(nrows=rows,
                                 ncols=(int(np.ceil(num_plots / rows))),
                                 figsize=(15, 10))
+        # Predicts 'num_plots' amount of future plots
         for i in range(len(axs.ravel())):
             axi = axs.ravel()[i]
             start_location = self.pred_start + i * self.max_future_steps
+            # Get random start location
             if self.randomize_plot_location:
                 start_location = np.random.randint(
                     self.amount_to_remove * 2,
                     len(self.data_valid) - self.amount_to_remove)
+            # Get the x and y values of the graphs (historic, target and predictions)
             historic, targets, predictions = self.get_future_plots(
                 start_location)
+            # Pyplot stuff
             axi.set_title(f'Pred #{i}')
             axi.plot(historic[0], historic[1], label='hist')
             axi.plot(predictions[0], predictions[1], label='pred')
