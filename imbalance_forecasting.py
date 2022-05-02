@@ -238,7 +238,7 @@ def main():
     forecast = ImbalanceForecasting("config/config1.ini")  # Best model
     # forecast = ImbalanceForecasting("config/config2.ini")  # Timeless model
     # forecast = ImbalanceForecasting("config/config3.ini")  # 20 epoch model
-    # forecast = ImbalanceForecasting("config/config4.ini")  # Altered
+    # forecast = ImbalanceForecasting("config/config4.ini")  # struct_imbal as feat.
     # forecast = ImbalanceForecasting("config/config5.ini")  # Altered target
     forecast.run()
 
