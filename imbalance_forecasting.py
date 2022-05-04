@@ -1,5 +1,6 @@
 """Haakon8855"""
 
+from calendar import day_name
 import json
 import numpy as np
 from matplotlib import pyplot as plt
@@ -50,10 +51,13 @@ class ImbalanceForecasting:
 
         self.data_train = None
         self.data_valid = None
+        self.data_holdout = None
         self.train_x = None
         self.train_y = None
         self.valid_x = None
         self.valid_y = None
+        self.holdout_x = None
+        self.holdout_y = None
         self.history = None
 
         # Initialize classes
@@ -70,6 +74,8 @@ class ImbalanceForecasting:
             'datasets\\no1_train.csv')
         self.data_valid = self.data_loader.get_processed_data(
             'datasets\\no1_validation.csv')
+        self.data_holdout = self.data_loader.get_processed_data(
+            'datasets\\no1_validation.csv')
 
         self.train_x, self.train_y = DataLoader.strip_and_format_data(
             self.data_train,
@@ -80,6 +86,14 @@ class ImbalanceForecasting:
             randomize_y_prev=self.randomize_y_prev)
         self.valid_x, self.valid_y = DataLoader.strip_and_format_data(
             self.data_valid,
+            self.cols_to_use,
+            'y',
+            self.amount_to_remove,
+            self.steps,
+            randomize_y_prev=self.randomize_y_prev)
+        # TODO: try turn off randomize
+        self.holdout_x, self.holdout_y = DataLoader.strip_and_format_data(
+            self.data_holdout,
             self.cols_to_use,
             'y',
             self.amount_to_remove,
@@ -107,23 +121,35 @@ class ImbalanceForecasting:
         if self.history is not None:
             self.plot_loss_history(self.model_name)
 
-    def predict_one_step(self, num_plots: int = 2, limit: int = 300):
+    def predict_one_step(self, limit: int = 300):
         """
         Predicts one step ahead and plots the resulting imbalance graph along
         with the target.
         """
-        for i in range(num_plots):
-            self.plot_future_one_step(self.pred_start + i * limit, limit)
+        # Valid set
+        self.plot_future_one_step(self.valid_x,
+                                  self.valid_y,
+                                  self.pred_start,
+                                  limit,
+                                  data_name='Validation')
+        # Holdout set
+        self.plot_future_one_step(self.holdout_x,
+                                  self.holdout_y,
+                                  self.pred_start,
+                                  limit,
+                                  data_name='Holdout')
 
-    def predict_two_hours(self,
-                          num_plots: int = 2,
-                          num_plots_per_plot: int = 9):
+    def predict_two_hours(self, num_plots_per_plot: int = 9):
         """
         Predicts two hours into the future by using the predicted values
         as y_prev for continued predictions.
         """
-        for _ in range(num_plots):
-            self.plot_pred_future_multiple(num_plots_per_plot)
+        self.plot_pred_future_multiple(self.data_valid,
+                                       num_plots_per_plot,
+                                       data_name='Validation')
+        self.plot_pred_future_multiple(self.data_holdout,
+                                       num_plots_per_plot,
+                                       data_name='Holdout')
 
     def run(self):
         """
@@ -136,23 +162,28 @@ class ImbalanceForecasting:
         self.predict_one_step()
         self.predict_two_hours()
 
-    def plot_future_one_step(self, pred_start: int, limit: int):
+    def plot_future_one_step(self,
+                             data_x,
+                             data_y,
+                             pred_start: int,
+                             limit: int,
+                             data_name: str = 'Unknown'):
         """
         Predicts one step into the future for 'limit' amount of timesteps.
         """
-        test_x = self.valid_x[pred_start:pred_start + limit]
-        test_y = self.valid_y[pred_start:pred_start + limit]
+        test_x = data_x[pred_start:pred_start + limit]
+        test_y = data_y[pred_start:pred_start + limit]
         y_pred = self.network.predict(test_x)
         x_axis = np.arange(pred_start, pred_start + limit)
 
         plt.figure(figsize=(15, 7))
-        plt.title('Predict one step ahead')
+        plt.title(f'{data_name} data set: Predict one step ahead')
         plt.plot(x_axis, test_y, label='target')
         plt.plot(x_axis, y_pred, label='pred')
         plt.legend()
         plt.show()
 
-    def get_future_plots(self, start_location: int):
+    def get_future_plots(self, data, start_location: int):
         """
         Predicts 'steps' amount of steps into the future. Using the previously
         predicted value as input for the next prediction.
@@ -162,7 +193,7 @@ class ImbalanceForecasting:
         # Where to stop predictions
         preds_idx_stop = self.amount_to_remove + start_location + self.steps + self.max_future_steps
         # Get input to the network for predictions
-        pred_input = self.data_valid.iloc[preds_idx_start:preds_idx_stop][
+        pred_input = data.iloc[preds_idx_start:preds_idx_stop][
             self.cols_to_use]
         # Get predictions
         preds = self.network.predict_into_future(pred_input)
@@ -173,15 +204,14 @@ class ImbalanceForecasting:
         target_idx_start = self.amount_to_remove + start_location - self.hist_size
         target_idx_stop = preds_idx_stop
         # The target for the predictions in the whole time-frame
-        target = self.data_valid.iloc[target_idx_start:target_idx_stop]['y']
+        target = data.iloc[target_idx_start:target_idx_stop]['y']
 
         if self.altered_forecasting:
             # Calculate the structured imbalance if running the altered
             # forecasting task. This calculated value will be later added
             # to the predictions.
-            target_without = self.data_valid.iloc[
-                target_idx_start:target_idx_stop]['y']
-            target = self.data_valid.iloc[target_idx_start:target_idx_stop][
+            target_without = data.iloc[target_idx_start:target_idx_stop]['y']
+            target = data.iloc[target_idx_start:target_idx_stop][
                 'y_with_struct_imbal']
             target_struct_imbal = target - target_without
 
@@ -220,10 +250,10 @@ class ImbalanceForecasting:
             start_location, preds)
         return historic, targets, predictions
 
-    def plot_pred_future_multiple(
-        self,
-        num_plots: int,
-    ):
+    def plot_pred_future_multiple(self,
+                                  data,
+                                  num_plots: int,
+                                  data_name: str = 'Unknown'):
         """
         Predicts 'steps' amount of steps into the future. Using the previously
         predicted value as input for the next prediction.
@@ -240,16 +270,16 @@ class ImbalanceForecasting:
             if self.randomize_plot_location:
                 start_location = np.random.randint(
                     self.amount_to_remove * 2,
-                    len(self.data_valid) - self.amount_to_remove)
+                    len(data) - self.amount_to_remove * 2)
             # Get the x and y values of the graphs (historic, target and predictions)
             historic, targets, predictions = self.get_future_plots(
-                start_location)
+                data, start_location)
             # Pyplot stuff
             axi.set_title(f'Pred #{i}')
             axi.plot(historic[0], historic[1], label='hist')
             axi.plot(predictions[0], predictions[1], label='pred')
             axi.plot(targets[0], targets[1], label='target')
-        fig.suptitle('Predict 2 hrs')
+        fig.suptitle(f'{data_name} data set: Predict 2 hrs into future')
         fig.legend(['hist', 'pred', 'target'])
         plt.show()
 
