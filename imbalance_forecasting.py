@@ -91,7 +91,6 @@ class ImbalanceForecasting:
             self.amount_to_remove,
             self.steps,
             randomize_y_prev=self.randomize_y_prev)
-        # TODO: try turn off randomize
         self.holdout_x, self.holdout_y = DataLoader.strip_and_format_data(
             self.data_holdout,
             self.cols_to_use,
