@@ -1,6 +1,5 @@
 """Haakon8855"""
 
-from calendar import day_name
 import json
 import numpy as np
 from matplotlib import pyplot as plt
