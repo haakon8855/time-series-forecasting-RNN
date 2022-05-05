@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 from configuration import Config
 from data_loader import DataLoader
-from rnn import RecurringNeuralNetwork
+from rnn import RecurrentNeuralNetwork
 
 
 class ImbalanceForecasting:
@@ -61,7 +61,7 @@ class ImbalanceForecasting:
 
         # Initialize classes
         self.data_loader = DataLoader(self.altered_forecasting)
-        self.network = RecurringNeuralNetwork(len(self.cols_to_use),
+        self.network = RecurrentNeuralNetwork(len(self.cols_to_use),
                                               steps=self.steps,
                                               weights_path=self.weights_path)
 

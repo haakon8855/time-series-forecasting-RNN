@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras as ks
 
 
-class RecurringNeuralNetwork:
+class RecurrentNeuralNetwork:
     """
     RNN for pred
     """
