@@ -20,10 +20,6 @@ More plots from models trained differently can be seen in [`plots/`](plots/).
 
 To run this program, download or clone the repository and run `imbalance_forecasting.py` using Python 3.9 or higher. As of writing this text, Tensorflow does not support Python 3.10 or higher.
 
-### Download
-
-Clone the project to any local directory. From there, the network class can be instantiated to create neural networks or the `test_images.py`-script can be run to test different neural networks on a generated data set.
-
 ## Requirements
 
 - Python 3.9 or higher
