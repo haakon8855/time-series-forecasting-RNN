@@ -74,7 +74,7 @@ class ImbalanceForecasting:
         self.data_valid = self.data_loader.get_processed_data(
             'datasets\\no1_validation.csv')
         self.data_holdout = self.data_loader.get_processed_data(
-            'datasets\\no1_validation.csv')
+            'datasets\\no1_test.csv')
 
         self.train_x, self.train_y = DataLoader.strip_and_format_data(
             self.data_train,
