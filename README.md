@@ -37,7 +37,7 @@ To run this program, download or clone the repository and run `imbalance_forecas
 
 Most settings, such as which features to use or how long to train, can be changed in the config files. Examples for config files can be found in [`config/`](config/).
 
-The syntax of the neural network config files is identical to Windows' .ini-files' syntax, where variables are defined on separate lines with an equals-sign separating the variable and the value.
+The syntax of the config files is identical to Windows' .ini-files' syntax, where variables are defined on separate lines with an equals-sign separating the variable and the value.
 
 In the __Globals__ section of the config we find the following settings:
 
